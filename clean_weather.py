@@ -1,30 +1,33 @@
 # 0.匯入套件
+import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col,explode,lit,current_timestamp
 
 
-# 1.設定變數
-STAGING_BUCKET_NAME = "ubike-471005-data-lake" 
-print(f"使用的 Bucket 名稱: {STAGING_BUCKET_NAME}")
+# 從命令欄讀取動態參數(由airflow以bash傳遞)
+if len(sys.argv)<3:
+    #若傳入參數數量不足，顯示需傳入參數說明並退出
+    print("Usage: clean_weather.py <date_path> <filename>")
+    sys.exit(1)
 
-# 使用固定的測試日期，以確保測試的穩定性
-TEST_YEAR = "2025"
-TEST_MONTH = "10"
-TEST_DAY = "01"
-DATE_PATH = f"{TEST_YEAR}/{TEST_MONTH}/{TEST_DAY}" # 2025/10/01
-filename="20251001_000003"
+DATE_PATH = sys.argv[1]
+filename= sys.argv[2]
 print(f"測試日期：{DATE_PATH}")
 
+# 設定變數
+STAGING_BUCKET_NAME = "ubike-471005-data-lake" 
 # 原始 JSON 檔案路徑
 GCS_WEATHER_INPUT_PATH = f"gs://{STAGING_BUCKET_NAME}/weather_raw/{DATE_PATH}/{filename}.json"
 # 輸出路徑：使用 Parquet 格式
 GCS_WEATHER_OUTPUT_PATH = f"gs://{STAGING_BUCKET_NAME}/weather_cleaned_parquet/{DATE_PATH}/"
+print(f"使用的 Bucket 名稱: {STAGING_BUCKET_NAME}")
+print(f"測試日期：{DATE_PATH}")
 print(f"輸入路徑：{GCS_WEATHER_INPUT_PATH}")
 print(f"輸出路徑：{GCS_WEATHER_OUTPUT_PATH}")
 
 
 # 2.啟動 Spark Session
-spark=SparkSession.builder.appName("WeatherETLTesting").getOrCreate()
+spark=SparkSession.builder.appName(f"WeatherETL_{DATE_PATH}").getOrCreate()
 print("Spark Session 已經準備就緒，開始ETL流程。")
 
 
@@ -67,5 +70,11 @@ df_final.printSchema()
 # 6. 寫入 GCS (Parquet 格式)
 df_final.write\
     .mode("overwrite")\
-    .partitiony("execution_date")\
+    .partitionBy("execution_date")\
     .parquet(GCS_WEATHER_OUTPUT_PATH)
+print(f"數據處理完成，寫入路徑: {GCS_WEATHER_OUTPUT_PATH}")
+
+
+# 7. 停止 Spark Session (Dataproc 叢集將被 Airflow 終止)
+# 確保資源被釋放
+spark.stop()
