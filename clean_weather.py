@@ -5,19 +5,18 @@ from pyspark.sql.functions import col,explode,lit,current_timestamp
 
 
 # 從命令欄讀取動態參數(由airflow以bash傳遞)
-if len(sys.argv)<3:
+if len(sys.argv)<2:
     #若傳入參數數量不足，顯示需傳入參數說明並退出
-    print("Usage: clean_weather.py <date_path> <filename>")
+    print("Usage: clean_weather.py <date_path>")
     sys.exit(1)
 
 DATE_PATH = sys.argv[1]
-filename= sys.argv[2]
 print(f"測試日期：{DATE_PATH}")
 
 # 設定變數
 STAGING_BUCKET_NAME = "ubike-471005-data-lake" 
 # 原始 JSON 檔案路徑
-GCS_WEATHER_INPUT_PATH = f"gs://{STAGING_BUCKET_NAME}/weather_raw/{DATE_PATH}/{filename}.json"
+GCS_WEATHER_INPUT_PATH = f"gs://{STAGING_BUCKET_NAME}/weather_raw/{DATE_PATH}/*.json"
 # 輸出路徑：使用 Parquet 格式
 GCS_WEATHER_OUTPUT_PATH = f"gs://{STAGING_BUCKET_NAME}/weather_cleaned_parquet/{DATE_PATH}/"
 print(f"使用的 Bucket 名稱: {STAGING_BUCKET_NAME}")
